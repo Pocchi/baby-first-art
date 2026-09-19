@@ -27,7 +27,8 @@ export default function App() {
   // モード ＆ 表示設定 state
   const [vjMode, setVjMode] = useState<Mode>('select');
   const [hideUi, setHideUi] = useState(false);
-  const [paletteIdx] = useState(0);
+  const [paletteIdx, setPaletteIdx] = useState<number>(0);
+  const [selectedColorIdx, setSelectedColorIdx] = useState<number>(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // WebRTC ワイヤレス同期 state
@@ -38,6 +39,17 @@ export default function App() {
 
   const syncLinkRef = useRef<FirstArtSyncLinkWireless | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // パレット切り替えハンドラー
+  const handleSelectPalette = useCallback((idx: number) => {
+    setPaletteIdx(idx);
+    if (syncLinkRef.current) {
+      syncLinkRef.current.send({
+        type: 'palette_change',
+        paletteIdx: idx,
+      });
+    }
+  }, []);
 
   // 2D Canvas パーティクル参照
   const particleCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -193,6 +205,20 @@ export default function App() {
     }
   }, []);
 
+  // 🎨 PC用 絵の具点の追加 (混色・拡大は一切せず、選択中の色の点のみを追加)
+  const addPcPointDroplet = useCallback((x: number, y: number) => {
+    const drops = dropletsRef.current;
+    if (drops.length < 32) {
+      drops.push({
+        x,
+        y,
+        r: 0.075,
+        colorIdx: selectedColorIdx,
+      });
+      setRerender((v) => v + 1);
+    }
+  }, [selectedColorIdx]);
+
   // 🔄 キャンバスリセット
   const handleReset = useCallback(() => {
     const newDroplets = generateInitialDroplets();
@@ -249,7 +275,6 @@ export default function App() {
   // 📡 WebRTC 投影ホスト初期化 (Projection モード)
   useEffect(() => {
     if (vjMode === 'projection') {
-      setHideUi(true); // 投影時はUI自動非表示
       setSoundEnabled(false); // 投影PC側はデフォルトで効果音OFF (消音)
       const sync = new FirstArtSyncLinkWireless();
       syncLinkRef.current = sync;
@@ -277,6 +302,8 @@ export default function App() {
         } else if (msg.type === 'droplets_update' && msg.droplets) {
           dropletsRef.current = msg.droplets;
           setRerender((v) => v + 1);
+        } else if (msg.type === 'palette_change' && msg.paletteIdx !== undefined) {
+          setPaletteIdx(msg.paletteIdx);
         } else if (msg.type === 'reset') {
           dropletsRef.current = msg.droplets || generateInitialDroplets();
           particlesRef.current = [];
@@ -344,6 +371,8 @@ export default function App() {
           syncLinkRef.current.close();
           syncLinkRef.current = null;
         }
+      } else if (msg.type === 'palette_change' && msg.paletteIdx !== undefined) {
+        setPaletteIdx(msg.paletteIdx);
       } else if (msg.type === 'reset' || msg.type === 'droplets_update') {
         if (msg.droplets) {
           dropletsRef.current = msg.droplets;
@@ -360,9 +389,8 @@ export default function App() {
     sync.connectToHost(targetCode);
   };
 
-  // 👇 タッチイベントハンドラー (絵の具の操作はiPad/コントローラー端末の接続完了時のみ許可)
+  // 👇 タッチ・マウスクリックイベントハンドラー
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
     if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -373,6 +401,20 @@ export default function App() {
 
     const seed = Math.random();
 
+    // 🖥️ PC投影画面 (Projection) の場合は点として1点絵の具を置く (混色・拡大は一切せず選択色の点のみ追加)
+    if (vjMode === 'projection') {
+      addPcPointDroplet(x, y);
+      playPaintSound();
+      if (syncLinkRef.current) {
+        syncLinkRef.current.send({
+          type: 'droplets_update',
+          droplets: dropletsRef.current,
+        });
+      }
+      return;
+    }
+
+    // iPad / Standalone モードの場合は通常通り連続操作 ＋ スプラッシュ粒子
     activePointerMap.current.set(e.pointerId, { lastX: x, lastY: y });
     applyPaintSpreadAt(x, y);
     spawnParticlesAt(normX, normY, seed);
@@ -392,7 +434,7 @@ export default function App() {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+    if (vjMode === 'projection') return; // PC投影画面では連続ドラッグ描画を禁止（点で置くため）
     if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
     if (!activePointerMap.current.has(e.pointerId)) return;
 
@@ -429,7 +471,7 @@ export default function App() {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+    if (vjMode === 'projection') return; // PC投影画面では連続ドラッグ描画を禁止
     if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
     activePointerMap.current.delete(e.pointerId);
 
@@ -476,11 +518,15 @@ export default function App() {
         vjMode={vjMode}
         hideUi={hideUi}
         soundEnabled={soundEnabled}
+        paletteIdx={paletteIdx}
+        selectedColorIdx={selectedColorIdx}
         connectionStatus={connectionStatus}
         roomId={roomId}
         onSetVjMode={setVjMode}
         onSetHideUi={setHideUi}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        onSelectPalette={handleSelectPalette}
+        onSelectColor={setSelectedColorIdx}
         onResetCanvas={handleReset}
       />
 

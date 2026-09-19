@@ -7,16 +7,21 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Mode } from '../types/firstArt';
+import { COLOR_PALETTES } from '../constants/palettes';
 
 interface UIOverlayProps {
   vjMode: Mode;
   hideUi: boolean;
   soundEnabled: boolean;
+  paletteIdx: number;
+  selectedColorIdx: number;
   connectionStatus: 'idle' | 'connecting' | 'connected' | 'disconnected';
   roomId: string;
   onSetVjMode: (mode: Mode) => void;
   onSetHideUi: (hide: boolean) => void;
   onToggleSound: () => void;
+  onSelectPalette: (idx: number) => void;
+  onSelectColor: (idx: number) => void;
   onResetCanvas: () => void;
 }
 
@@ -42,11 +47,15 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   vjMode,
   hideUi,
   soundEnabled,
+  paletteIdx,
+  selectedColorIdx,
   connectionStatus,
   roomId,
   onSetVjMode,
   onSetHideUi,
   onToggleSound,
+  onSelectPalette,
+  onSelectColor,
   onResetCanvas,
 }) => {
   // QRコード用URL (現在ページのオリジン + パス + ?room=部屋ID)
@@ -287,6 +296,59 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               color: '#ffffff',
             }}
           >
+            {/* 点で置く絵の具の色選択 (基本4色 ＋ ✨差し色2色) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap', fontWeight: 700 }}>🎨 絵の具の色:</span>
+              
+              {/* 基本4色 */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {COLOR_PALETTES[paletteIdx % COLOR_PALETTES.length].hexes.slice(0, 4).map((hex, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSelectColor(idx)}
+                    title={`基本色 ${idx + 1}`}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: hex,
+                      border: selectedColorIdx === idx ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.25)',
+                      boxShadow: selectedColorIdx === idx ? `0 0 12px ${hex}` : 'none',
+                      transform: selectedColorIdx === idx ? 'scale(1.2)' : 'scale(1)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* ✨ 差し色 (アクセントカラー) */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', background: 'rgba(255, 112, 166, 0.12)', padding: '4px 8px', borderRadius: '14px', border: '1px solid rgba(255, 112, 166, 0.3)' }}>
+                <span style={{ fontSize: '10px', color: '#ff70a6', fontWeight: 800, whiteSpace: 'nowrap' }}>✨ 差し色:</span>
+                {COLOR_PALETTES[paletteIdx % COLOR_PALETTES.length].hexes.slice(4, 6).map((hex, relativeIdx) => {
+                  const idx = relativeIdx + 4;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => onSelectColor(idx)}
+                      title={`差し色 ${relativeIdx + 1}`}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        backgroundColor: hex,
+                        border: selectedColorIdx === idx ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.25)',
+                        boxShadow: selectedColorIdx === idx ? `0 0 12px ${hex}` : 'none',
+                        transform: selectedColorIdx === idx ? 'scale(1.2)' : 'scale(1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 音声ON/OFF */}
             <button
               onClick={onToggleSound}

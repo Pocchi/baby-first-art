@@ -28,7 +28,7 @@ export const FirstArtShader = {
     uniform float uTime;         // 経過時間 (秒)
     uniform vec4 uDroplets[32];  // ドロップ座標 (x, y, radius, colorIndex)
     uniform int uDropletCount;   // アクティブなドロップ数
-    uniform vec3 uPalette[4];    // アクリル絵の具パレット (RGB Vector3 × 4色)
+    uniform vec3 uPalette[6];    // アクリル絵の具パレット (RGB Vector3 × 6色: 基本4色 ＋ 差し色2色)
 
     varying vec2 vUv;
 
@@ -113,7 +113,7 @@ export const FirstArtShader = {
         if (effectiveDist < currentRadius) {
           float alpha = smoothstep(currentRadius, currentRadius * 0.55, effectiveDist);
           int colorIdx = int(drop.w);
-          vec3 dropColor = uPalette[colorIdx % 4];
+          vec3 dropColor = uPalette[colorIdx % 6];
 
           // 3Dドーム状盛り上がりの高さと法線ベクトル算出
           float normDist = clamp(effectiveDist / currentRadius, 0.0, 1.0);

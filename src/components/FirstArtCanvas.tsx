@@ -49,8 +49,10 @@ const FirstArtMesh = ({ paletteIdx, dropletsRef }: FirstArtMeshProps) => {
       const targetPalette = COLOR_PALETTES[paletteIdx % COLOR_PALETTES.length] || COLOR_PALETTES[0];
       const activePalette = targetPalette.colors;
       const uPaletteVecs = materialRef.current.uniforms.uPalette.value as THREE.Color[];
-      for (let i = 0; i < 4; i++) {
-        uPaletteVecs[i].copy(activePalette[i]);
+      for (let i = 0; i < 6; i++) {
+        if (activePalette[i] && uPaletteVecs[i]) {
+          uPaletteVecs[i].copy(activePalette[i]);
+        }
       }
 
       // 絵の具ドロップ配列の更新
@@ -115,7 +117,7 @@ export const FirstArtCanvas: React.FC<FirstArtCanvasProps> = ({
         left: 0,
         cursor: vjMode === 'projection' ? 'default' : 'pointer',
         zIndex: 10,
-        pointerEvents: vjMode === 'projection' ? 'none' : 'auto', // 投影PC時はマウスタッチ全無効化
+        pointerEvents: 'auto',
       }}
     >
       <Canvas
