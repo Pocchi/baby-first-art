@@ -11,7 +11,7 @@
  */
 
 export interface FirstArtSyncMessage {
-  type: 'droplets_update' | 'pointer_down' | 'pointer_move' | 'palette_change' | 'reset' | 'frame_toggle';
+  type: 'droplets_update' | 'pointer_down' | 'pointer_move' | 'palette_change' | 'reset' | 'frame_toggle' | 'host_closed';
   droplets?: Array<{ x: number; y: number; r: number; colorIdx: number }>;
   x?: number;
   y?: number;
@@ -26,7 +26,8 @@ export interface FirstArtSyncMessage {
 
 export class FirstArtSyncLinkWireless {
   private peer: any = null;
-  private connection: any = null;
+  private connection: any = null; // コントローラー用
+  private connections: any[] = []; // ホスト用 (複数iPad端末同時接続管理)
   private broadcastChannel: BroadcastChannel | null = null;
   private isHost: boolean = false;
   private roomId: string = '';
@@ -72,7 +73,7 @@ export class FirstArtSyncLinkWireless {
 
       this.peer.on('connection', (conn: any) => {
         console.log('[FirstArt Sync] Controller connected:', conn.peer);
-        this.connection = conn;
+        this.connections.push(conn);
 
         conn.on('open', () => {
           if (this.onConnectCallback) this.onConnectCallback();
@@ -83,6 +84,7 @@ export class FirstArtSyncLinkWireless {
         });
 
         conn.on('close', () => {
+          this.connections = this.connections.filter((c) => c !== conn);
           if (this.onCloseCallback) this.onCloseCallback();
         });
 
@@ -119,6 +121,11 @@ export class FirstArtSyncLinkWireless {
 
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       this.broadcastChannel = new BroadcastChannel(`first-art-channel-${roomId}`);
+      this.broadcastChannel.onmessage = (event) => {
+        if (this.onMessageCallback) {
+          this.onMessageCallback(event.data as FirstArtSyncMessage);
+        }
+      };
     }
 
     try {
@@ -163,7 +170,7 @@ export class FirstArtSyncLinkWireless {
   }
 
   /**
-   * メッセージ送信（BroadcastChannel ＋ WebRTC）
+   * メッセージ送信（BroadcastChannel ＋ 全接続WebRTCピアへ送信）
    */
   public send(msg: FirstArtSyncMessage) {
     if (this.broadcastChannel) {
@@ -173,7 +180,19 @@ export class FirstArtSyncLinkWireless {
         console.warn('[FirstArt Sync] BroadcastChannel send error:', err);
       }
     }
-    if (this.connection && this.connection.open) {
+
+    if (this.isHost) {
+      // ホストの場合: 全接続コントローラー（iPad）に送信
+      const targets = new Set([...this.connections, this.connection].filter(Boolean));
+      targets.forEach((conn: any) => {
+        try {
+          conn.send(msg);
+        } catch (err) {
+          console.warn('[FirstArt Sync] WebRTC send error:', err);
+        }
+      });
+    } else if (this.connection) {
+      // コントローラーの場合: ホストに送信
       try {
         this.connection.send(msg);
       } catch (err) {
@@ -203,6 +222,10 @@ export class FirstArtSyncLinkWireless {
       this.broadcastChannel.close();
       this.broadcastChannel = null;
     }
+    this.connections.forEach((conn) => {
+      try { conn.close(); } catch {}
+    });
+    this.connections = [];
     if (this.connection) {
       this.connection.close();
       this.connection = null;

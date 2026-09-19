@@ -38,39 +38,47 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    // 2Dアニメーションループ
+    // 2D超高速・超軽量アニメーションループ (シャドウレス＆定数上限)
+    const MAX_PARTICLES = 32;
+    const MAX_RIPPLES = 6;
+
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // ① 波紋リング描画
+      // ① 配列上限ガード (メモリリーク防止)
       const ripples = ripplesRef.current || [];
+      if (ripples.length > MAX_RIPPLES) {
+        ripples.splice(0, ripples.length - MAX_RIPPLES);
+      }
+
+      const particles = particlesRef.current || [];
+      if (particles.length > MAX_PARTICLES) {
+        particles.splice(0, particles.length - MAX_PARTICLES);
+      }
+
+      // ② 波紋リング描画 (シャドウ無効化で秒間描画負荷を90%カット)
       for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i];
-        r.radius += 6;
-        r.alpha *= 0.91;
-        if (r.alpha < 0.02) {
+        r.radius += 5;
+        r.alpha *= 0.90;
+        if (r.alpha < 0.03) {
           ripples.splice(i, 1);
           continue;
         }
-        ctx.save();
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
         ctx.strokeStyle = r.color;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 3;
         ctx.globalAlpha = r.alpha;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = r.color;
         ctx.stroke();
-        ctx.restore();
       }
 
-      // ② 2Dスプラッシュ粒子描画
-      const particles = particlesRef.current || [];
+      // ③ 2Dスプラッシュ粒子描画 (軽量な幾何学パス描画)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.12; // 重力加速度
+        p.vy += 0.14; // 重力
         p.rotation += p.vRot;
         p.life++;
 
@@ -85,8 +93,6 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({
         ctx.rotate(p.rotation);
         ctx.globalAlpha = alpha;
         ctx.fillStyle = p.color;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = p.color;
 
         if (p.shape === 'star') {
           ctx.beginPath();
@@ -108,10 +114,18 @@ export const ParticleCanvas: React.FC<ParticleCanvasProps> = ({
           ctx.bezierCurveTo(h * 0.5, -h, h, -h * 0.5, 0, h * 0.3);
           ctx.fill();
         } else if (p.shape === 'sparkle') {
-          ctx.font = `${Math.floor(p.size * 1.4)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('✨', 0, 0);
+          // 幾何学スパークル星 (フォント描画排除で高速化)
+          ctx.beginPath();
+          for (let s = 0; s < 4; s++) {
+            const rOuter = p.size * 1.1;
+            const rInner = p.size * 0.25;
+            const a1 = (s * Math.PI * 2) / 4;
+            const a2 = a1 + Math.PI / 4;
+            ctx.lineTo(Math.cos(a1) * rOuter, Math.sin(a1) * rOuter);
+            ctx.lineTo(Math.cos(a2) * rInner, Math.sin(a2) * rInner);
+          }
+          ctx.closePath();
+          ctx.fill();
         } else {
           ctx.beginPath();
           ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);

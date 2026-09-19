@@ -27,16 +27,29 @@ export default function App() {
   // モード ＆ 表示設定 state
   const [vjMode, setVjMode] = useState<Mode>('select');
   const [hideUi, setHideUi] = useState(false);
-  const [paletteIdx] = useState(0);
+  const [paletteIdx, setPaletteIdx] = useState<number>(0);
+  const [selectedColorIdx, setSelectedColorIdx] = useState<number>(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // WebRTC ワイヤレス同期 state
   const [roomId, setRoomId] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [reconnectCode, setReconnectCode] = useState<string>('');
 
   const syncLinkRef = useRef<FirstArtSyncLinkWireless | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // パレット切り替えハンドラー
+  const handleSelectPalette = useCallback((idx: number) => {
+    setPaletteIdx(idx);
+    if (syncLinkRef.current) {
+      syncLinkRef.current.send({
+        type: 'palette_change',
+        paletteIdx: idx,
+      });
+    }
+  }, []);
 
   // 2D Canvas パーティクル参照
   const particleCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -66,9 +79,15 @@ export default function App() {
   const dropletsRef = useRef<Droplet[]>(generateInitialDroplets());
   const [, setRerender] = useState(0);
 
-  // 🔊 効果音再生
+  const lastSoundTimeRef = useRef<number>(0);
+
+  // 🔊 効果音再生 (WebAudioスロットル ＆ ノード自動解放でメモリリーク完全防止)
   const playPaintSound = useCallback(() => {
     if (!soundEnabled) return;
+    const nowMs = Date.now();
+    if (nowMs - lastSoundTimeRef.current < 80) return;
+    lastSoundTimeRef.current = nowMs;
+
     try {
       if (!audioCtxRef.current) {
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -97,6 +116,14 @@ export default function App() {
 
       osc.start(now);
       osc.stop(now + 0.15);
+
+      // WebAudio メモリ即時解放
+      setTimeout(() => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      }, 200);
     } catch {}
   }, [soundEnabled]);
 
@@ -178,14 +205,38 @@ export default function App() {
     }
   }, []);
 
+  // 🎨 PC用 絵の具点の追加 (混色・拡大は一切せず、選択中の色の点のみを追加)
+  const addPcPointDroplet = useCallback((x: number, y: number) => {
+    const drops = dropletsRef.current;
+    if (drops.length < 32) {
+      drops.push({
+        x,
+        y,
+        r: 0.075,
+        colorIdx: selectedColorIdx,
+      });
+      setRerender((v) => v + 1);
+    }
+  }, [selectedColorIdx]);
+
   // 🔄 キャンバスリセット
   const handleReset = useCallback(() => {
-    dropletsRef.current = generateInitialDroplets();
+    const newDroplets = generateInitialDroplets();
+    dropletsRef.current = newDroplets;
+    particlesRef.current = [];
+    ripplesRef.current = [];
     activePointerMap.current.clear();
     setRerender((v) => v + 1);
 
     if (syncLinkRef.current) {
-      syncLinkRef.current.send({ type: 'reset' });
+      syncLinkRef.current.send({
+        type: 'reset',
+        droplets: newDroplets,
+      });
+      syncLinkRef.current.send({
+        type: 'droplets_update',
+        droplets: newDroplets,
+      });
     }
   }, [generateInitialDroplets]);
 
@@ -224,7 +275,6 @@ export default function App() {
   // 📡 WebRTC 投影ホスト初期化 (Projection モード)
   useEffect(() => {
     if (vjMode === 'projection') {
-      setHideUi(true); // 投影時はUI自動非表示
       setSoundEnabled(false); // 投影PC側はデフォルトで効果音OFF (消音)
       const sync = new FirstArtSyncLinkWireless();
       syncLinkRef.current = sync;
@@ -236,6 +286,11 @@ export default function App() {
 
       sync.onConnect(() => {
         setConnectionStatus('connected');
+        // 新しい端末が接続された際、ホスト（PC）側の現在の描画状態を送信して同期
+        sync.send({
+          type: 'droplets_update',
+          droplets: dropletsRef.current,
+        });
       });
 
       sync.onMessage((msg: FirstArtSyncMessage) => {
@@ -247,15 +302,31 @@ export default function App() {
         } else if (msg.type === 'droplets_update' && msg.droplets) {
           dropletsRef.current = msg.droplets;
           setRerender((v) => v + 1);
+        } else if (msg.type === 'palette_change' && msg.paletteIdx !== undefined) {
+          setPaletteIdx(msg.paletteIdx);
         } else if (msg.type === 'reset') {
-          dropletsRef.current = generateInitialDroplets();
+          dropletsRef.current = msg.droplets || generateInitialDroplets();
+          particlesRef.current = [];
+          ripplesRef.current = [];
+          activePointerMap.current.clear();
           setRerender((v) => v + 1);
         }
       });
 
       sync.startHost();
 
+      const handleBeforeUnload = () => {
+        try {
+          sync.send({ type: 'host_closed' });
+        } catch {}
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
       return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        try {
+          sync.send({ type: 'host_closed' });
+        } catch {}
         sync.close();
         syncLinkRef.current = null;
       };
@@ -266,11 +337,13 @@ export default function App() {
   const handleConnectAsController = (targetCode: string) => {
     if (!targetCode || targetCode.length !== 4) {
       setErrorMessage('4桁の部屋コードを入力してください');
+      setConnectionStatus('disconnected');
       return;
     }
 
     setConnectionStatus('connecting');
     setErrorMessage('');
+    setReconnectCode(targetCode);
 
     const sync = new FirstArtSyncLinkWireless();
     syncLinkRef.current = sync;
@@ -278,23 +351,47 @@ export default function App() {
     sync.onConnect(() => {
       setConnectionStatus('connected');
       setRoomId(targetCode);
-      sync.send({
-        type: 'droplets_update',
-        droplets: dropletsRef.current,
-      });
+    });
+
+    sync.onClose(() => {
+      setConnectionStatus('disconnected');
+      setErrorMessage('投影モニターが閉じたか通信が切断されました。');
     });
 
     sync.onError((err) => {
-      setConnectionStatus('idle');
-      setErrorMessage(`接続エラー: ${err}`);
+      setConnectionStatus('disconnected');
+      setErrorMessage(`部屋ID「${targetCode}」が見つからないか無効です。`);
+    });
+
+    sync.onMessage((msg: FirstArtSyncMessage) => {
+      if (msg.type === 'host_closed') {
+        setConnectionStatus('disconnected');
+        setErrorMessage('投影モニターの部屋が閉じられました。');
+        if (syncLinkRef.current) {
+          syncLinkRef.current.close();
+          syncLinkRef.current = null;
+        }
+      } else if (msg.type === 'palette_change' && msg.paletteIdx !== undefined) {
+        setPaletteIdx(msg.paletteIdx);
+      } else if (msg.type === 'reset' || msg.type === 'droplets_update') {
+        if (msg.droplets) {
+          dropletsRef.current = msg.droplets;
+        } else if (msg.type === 'reset') {
+          dropletsRef.current = generateInitialDroplets();
+        }
+        particlesRef.current = [];
+        ripplesRef.current = [];
+        activePointerMap.current.clear();
+        setRerender((v) => v + 1);
+      }
     });
 
     sync.connectToHost(targetCode);
   };
 
-  // 👇 タッチイベントハンドラー (絵の具の操作はiPad/コントローラー端末のみ許可)
+  // 👇 タッチ・マウスクリックイベントハンドラー
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+    if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
 
     const rect = e.currentTarget.getBoundingClientRect();
     const normX = (e.clientX - rect.left) / rect.width;
@@ -304,6 +401,20 @@ export default function App() {
 
     const seed = Math.random();
 
+    // 🖥️ PC投影画面 (Projection) の場合は点として1点絵の具を置く (混色・拡大は一切せず選択色の点のみ追加)
+    if (vjMode === 'projection') {
+      addPcPointDroplet(x, y);
+      playPaintSound();
+      if (syncLinkRef.current) {
+        syncLinkRef.current.send({
+          type: 'droplets_update',
+          droplets: dropletsRef.current,
+        });
+      }
+      return;
+    }
+
+    // iPad / Standalone モードの場合は通常通り連続操作 ＋ スプラッシュ粒子
     activePointerMap.current.set(e.pointerId, { lastX: x, lastY: y });
     applyPaintSpreadAt(x, y);
     spawnParticlesAt(normX, normY, seed);
@@ -323,7 +434,8 @@ export default function App() {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+    if (vjMode === 'projection') return; // PC投影画面では連続ドラッグ描画を禁止（点で置くため）
+    if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
     if (!activePointerMap.current.has(e.pointerId)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -359,7 +471,8 @@ export default function App() {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+    if (vjMode === 'projection') return; // PC投影画面では連続ドラッグ描画を禁止
+    if (vjMode === 'controller' && connectionStatus !== 'connected') return; // 未接続時は操作全禁止
     activePointerMap.current.delete(e.pointerId);
 
     if (syncLinkRef.current) {
@@ -405,11 +518,15 @@ export default function App() {
         vjMode={vjMode}
         hideUi={hideUi}
         soundEnabled={soundEnabled}
+        paletteIdx={paletteIdx}
+        selectedColorIdx={selectedColorIdx}
         connectionStatus={connectionStatus}
         roomId={roomId}
         onSetVjMode={setVjMode}
         onSetHideUi={setHideUi}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        onSelectPalette={handleSelectPalette}
+        onSelectColor={setSelectedColorIdx}
         onResetCanvas={handleReset}
       />
 
@@ -420,6 +537,137 @@ export default function App() {
           onConnectAsController={handleConnectAsController}
           errorMessage={errorMessage}
         />
+      )}
+
+      {/* ⑤ iPad コントローラー モードの接続待機・切断時 再接続ダイアログ */}
+      {vjMode === 'controller' && connectionStatus !== 'connected' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 90,
+            backgroundColor: 'rgba(3, 5, 12, 0.88)',
+            backdropFilter: 'blur(24px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '440px',
+              width: '100%',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: connectionStatus === 'disconnected' ? '1px solid rgba(255, 112, 166, 0.5)' : '1px solid rgba(0, 242, 254, 0.4)',
+              borderRadius: '24px',
+              padding: '32px',
+              textAlign: 'center',
+              boxShadow: '0 24px 80px rgba(0, 0, 0, 0.8)',
+              color: '#ffffff',
+            }}
+          >
+            <div style={{ fontSize: '42px', marginBottom: '12px' }}>
+              {connectionStatus === 'connecting' ? '⏳' : '📡'}
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: 900, color: connectionStatus === 'disconnected' ? '#ff70a6' : '#00f2fe', margin: '0 0 8px 0' }}>
+              {connectionStatus === 'connecting'
+                ? '投影モニターへ接続中...'
+                : '部屋が無効か切断されました'}
+            </h3>
+            <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '24px' }}>
+              {errorMessage || '新しい部屋IDを入力して再接続してください。'}
+            </p>
+
+            {connectionStatus !== 'connecting' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (syncLinkRef.current) {
+                      syncLinkRef.current.close();
+                      syncLinkRef.current = null;
+                    }
+                    handleConnectAsController(reconnectCode);
+                  }}
+                  style={{ display: 'flex', gap: '10px' }}
+                >
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={reconnectCode}
+                    onChange={(e) => setReconnectCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (syncLinkRef.current) {
+                          syncLinkRef.current.close();
+                          syncLinkRef.current = null;
+                        }
+                        handleConnectAsController(reconnectCode);
+                      }
+                    }}
+                    placeholder="例: 7842"
+                    style={{
+                      padding: '12px 18px',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      background: '#0f172a',
+                      color: '#ffffff',
+                      fontSize: '20px',
+                      fontWeight: 800,
+                      letterSpacing: '4px',
+                      textAlign: 'center',
+                      width: '150px',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '14px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)',
+                      color: '#000',
+                      fontSize: '14px',
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    再接続 🚀
+                  </button>
+                </form>
+
+                <button
+                  onClick={() => {
+                    if (syncLinkRef.current) {
+                      syncLinkRef.current.close();
+                      syncLinkRef.current = null;
+                    }
+                    setVjMode('select');
+                    setConnectionStatus('idle');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    background: 'transparent',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    marginTop: '4px',
+                  }}
+                >
+                  ⚙️ モード選択へ戻る
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
