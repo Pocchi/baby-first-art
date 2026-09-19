@@ -118,7 +118,12 @@ export const FirstArtCanvas: React.FC<FirstArtCanvasProps> = ({
         pointerEvents: vjMode === 'projection' ? 'none' : 'auto', // 投影PC時はマウスタッチ全無効化
       }}
     >
-      <Canvas camera={{ position: [0, 0, 1] }} style={{ width: '100%', height: '100%', display: 'block' }}>
+      <Canvas
+        camera={{ position: [0, 0, 1] }}
+        dpr={[1, 1.5]}
+        gl={{ powerPreference: 'high-performance', antialias: false, depth: false, stencil: false }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
+      >
         <FirstArtMesh paletteIdx={paletteIdx} dropletsRef={dropletsRef} />
       </Canvas>
     </div>

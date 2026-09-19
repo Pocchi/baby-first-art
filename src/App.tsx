@@ -67,9 +67,15 @@ export default function App() {
   const dropletsRef = useRef<Droplet[]>(generateInitialDroplets());
   const [, setRerender] = useState(0);
 
-  // 🔊 効果音再生
+  const lastSoundTimeRef = useRef<number>(0);
+
+  // 🔊 効果音再生 (WebAudioスロットル ＆ ノード自動解放でメモリリーク完全防止)
   const playPaintSound = useCallback(() => {
     if (!soundEnabled) return;
+    const nowMs = Date.now();
+    if (nowMs - lastSoundTimeRef.current < 80) return;
+    lastSoundTimeRef.current = nowMs;
+
     try {
       if (!audioCtxRef.current) {
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -98,6 +104,14 @@ export default function App() {
 
       osc.start(now);
       osc.stop(now + 0.15);
+
+      // WebAudio メモリ即時解放
+      setTimeout(() => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      }, 200);
     } catch {}
   }, [soundEnabled]);
 
@@ -524,12 +538,32 @@ export default function App() {
 
             {connectionStatus !== 'connecting' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (syncLinkRef.current) {
+                      syncLinkRef.current.close();
+                      syncLinkRef.current = null;
+                    }
+                    handleConnectAsController(reconnectCode);
+                  }}
+                  style={{ display: 'flex', gap: '10px' }}
+                >
                   <input
                     type="text"
                     maxLength={4}
                     value={reconnectCode}
                     onChange={(e) => setReconnectCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (syncLinkRef.current) {
+                          syncLinkRef.current.close();
+                          syncLinkRef.current = null;
+                        }
+                        handleConnectAsController(reconnectCode);
+                      }
+                    }}
                     placeholder="例: 7842"
                     style={{
                       padding: '12px 18px',
@@ -545,13 +579,7 @@ export default function App() {
                     }}
                   />
                   <button
-                    onClick={() => {
-                      if (syncLinkRef.current) {
-                        syncLinkRef.current.close();
-                        syncLinkRef.current = null;
-                      }
-                      handleConnectAsController(reconnectCode);
-                    }}
+                    type="submit"
                     style={{
                       padding: '12px 20px',
                       borderRadius: '14px',
@@ -565,7 +593,7 @@ export default function App() {
                   >
                     再接続 🚀
                   </button>
-                </div>
+                </form>
 
                 <button
                   onClick={() => {

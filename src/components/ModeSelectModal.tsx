@@ -153,12 +153,24 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
             <h4 style={{ fontSize: '15px', color: '#ffcd75', marginBottom: '12px' }}>
               📡 投影モニターの 4桁部屋コード を入力
             </h4>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleConnectSubmit();
+              }}
+              style={{ display: 'flex', gap: '12px' }}
+            >
               <input
                 type="text"
                 maxLength={4}
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleConnectSubmit();
+                  }
+                }}
                 placeholder="例: 7842"
                 style={{
                   padding: '12px 18px',
@@ -174,7 +186,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
                 }}
               />
               <button
-                onClick={handleConnectSubmit}
+                type="submit"
                 style={{
                   padding: '12px 24px',
                   borderRadius: '14px',
@@ -188,7 +200,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               >
                 送信機として接続 🚀
               </button>
-            </div>
+            </form>
             {errorMessage && <p style={{ color: '#ff4b5c', fontSize: '13px', marginTop: '10px' }}>{errorMessage}</p>}
           </div>
         )}
