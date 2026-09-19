@@ -119,6 +119,11 @@ export class FirstArtSyncLinkWireless {
 
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       this.broadcastChannel = new BroadcastChannel(`first-art-channel-${roomId}`);
+      this.broadcastChannel.onmessage = (event) => {
+        if (this.onMessageCallback) {
+          this.onMessageCallback(event.data as FirstArtSyncMessage);
+        }
+      };
     }
 
     try {

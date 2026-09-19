@@ -180,12 +180,16 @@ export default function App() {
 
   // 🔄 キャンバスリセット
   const handleReset = useCallback(() => {
-    dropletsRef.current = generateInitialDroplets();
+    const newDroplets = generateInitialDroplets();
+    dropletsRef.current = newDroplets;
     activePointerMap.current.clear();
     setRerender((v) => v + 1);
 
     if (syncLinkRef.current) {
-      syncLinkRef.current.send({ type: 'reset' });
+      syncLinkRef.current.send({
+        type: 'reset',
+        droplets: newDroplets,
+      });
     }
   }, [generateInitialDroplets]);
 
@@ -248,7 +252,8 @@ export default function App() {
           dropletsRef.current = msg.droplets;
           setRerender((v) => v + 1);
         } else if (msg.type === 'reset') {
-          dropletsRef.current = generateInitialDroplets();
+          dropletsRef.current = msg.droplets || generateInitialDroplets();
+          activePointerMap.current.clear();
           setRerender((v) => v + 1);
         }
       });
@@ -282,6 +287,17 @@ export default function App() {
         type: 'droplets_update',
         droplets: dropletsRef.current,
       });
+    });
+
+    sync.onMessage((msg: FirstArtSyncMessage) => {
+      if (msg.type === 'reset') {
+        dropletsRef.current = msg.droplets || generateInitialDroplets();
+        activePointerMap.current.clear();
+        setRerender((v) => v + 1);
+      } else if (msg.type === 'droplets_update' && msg.droplets) {
+        dropletsRef.current = msg.droplets;
+        setRerender((v) => v + 1);
+      }
     });
 
     sync.onError((err) => {

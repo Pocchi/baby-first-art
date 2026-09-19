@@ -20,6 +20,24 @@ interface UIOverlayProps {
   onResetCanvas: () => void;
 }
 
+const toggleFullScreen = () => {
+  if (typeof document === 'undefined') return;
+  if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+    const elem = document.documentElement as any;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(() => {});
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    }
+  }
+};
+
 export const UIOverlay: React.FC<UIOverlayProps> = ({
   vjMode,
   hideUi,
@@ -36,43 +54,29 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
     ? `${window.location.origin}${window.location.pathname}?room=${roomId}`
     : '';
 
-  // 📱 iPad (Controllerモード): 「投影モニター同期中」のステータスバッジのみ表示
+  // 📱 iPad (Controllerモード): 「部屋ID: XXXX」の控えめな表示のみ
   if (vjMode === 'controller') {
     return (
       <div
         style={{
           position: 'absolute',
-          top: '20px',
-          left: '20px',
+          top: '16px',
+          left: '16px',
           zIndex: 30,
-          padding: '10px 18px',
-          borderRadius: '16px',
-          background: connectionStatus === 'connected' ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 180, 0, 0.25)',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${connectionStatus === 'connected' ? '#00f2fe' : '#ffb400'}`,
-          color: '#ffffff',
-          fontSize: '13px',
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          padding: '6px 12px',
+          borderRadius: '10px',
+          background: 'rgba(0, 0, 0, 0.35)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          color: '#cbd5e1',
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.5px',
+          opacity: 0.65,
+          pointerEvents: 'none',
         }}
       >
-        <span>{connectionStatus === 'connected' ? '📡 投影モニター同期中' : '⏳ 接続待機中...'}</span>
-        {roomId && (
-          <span
-            style={{
-              background: 'rgba(0, 0, 0, 0.6)',
-              padding: '3px 10px',
-              borderRadius: '8px',
-              color: '#ffcd75',
-              fontWeight: 800,
-            }}
-          >
-            部屋ID: {roomId}
-          </span>
-        )}
+        部屋ID: {roomId || '----'}
       </div>
     );
   }
@@ -84,7 +88,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       {/* ------------------------------------------------------------- */}
       {!hideUi && vjMode !== 'select' && (
         <>
-          {/* 左上モード変更ボタン */}
+          {/* 左上モード変更 ＆ 全画面切り替えボタン */}
           <div
             style={{
               position: 'absolute',
@@ -111,6 +115,23 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               }}
             >
               ⚙️ モード変更
+            </button>
+
+            <button
+              onClick={toggleFullScreen}
+              style={{
+                padding: '10px 18px',
+                borderRadius: '16px',
+                background: 'rgba(0, 242, 254, 0.15)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(0, 242, 254, 0.3)',
+                color: '#00f2fe',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              ⛶ 全画面切替
             </button>
           </div>
 

@@ -13,6 +13,18 @@ interface ModeSelectModalProps {
   errorMessage: string;
 }
 
+const requestFullScreen = () => {
+  if (typeof document === 'undefined') return;
+  const elem = document.documentElement as any;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen().catch(() => {});
+  } else if (elem.webkitRequestFullscreen) {
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) {
+    elem.msRequestFullscreen();
+  }
+};
+
 export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
   onSelectMode,
   onConnectAsController,
@@ -24,6 +36,11 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
   const handleConnectSubmit = () => {
     onSelectMode('controller');
     onConnectAsController(inputCode);
+  };
+
+  const handleSelectProjection = () => {
+    requestFullScreen();
+    onSelectMode('projection');
   };
 
   return (
@@ -89,7 +106,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
 
           {/* モード2: プロジェクター投影 */}
           <div
-            onClick={() => onSelectMode('projection')}
+            onClick={handleSelectProjection}
             style={{
               padding: '24px',
               borderRadius: '20px',
@@ -104,7 +121,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               投影モニター (Projection)
             </h3>
             <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
-              大画面モニターやプロジェクター用。4桁コードを発行し、ボタンのない全画面で表示します。
+              大画面モニターやプロジェクター用。4桁コードを発行し、全画面で自動表示します。
             </p>
           </div>
 
@@ -175,6 +192,32 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
             {errorMessage && <p style={{ color: '#ff4b5c', fontSize: '13px', marginTop: '10px' }}>{errorMessage}</p>}
           </div>
         )}
+
+        {/* 💡 PWA アプリ化案内ガイド */}
+        <div
+          style={{
+            marginTop: '28px',
+            padding: '16px 20px',
+            borderRadius: '16px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            fontSize: '12px',
+            color: '#94a3b8',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+          }}
+        >
+          <div style={{ fontWeight: 800, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>💡 PWAアプリ化ガイド（全画面表示 ＆ 赤ちゃん誤操作ガード）</span>
+          </div>
+          <div>
+            <strong>📱 iPad の場合:</strong> Safari の共有ボタン ➔ 「ホーム画面に追加」でアドレスバーのないネイティブアプリとしてインストールできます。
+          </div>
+          <div>
+            <strong>🖥️ PC の場合:</strong> Chrome / Edge のアドレスバー右側にある「アプリとしてインストール」ボタンから、ブラウザ枠なしで全画面起動できます。
+          </div>
+        </div>
       </div>
     </div>
   );

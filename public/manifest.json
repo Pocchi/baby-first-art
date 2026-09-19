@@ -1,0 +1,29 @@
+{
+  "name": "Baby's First Art GLSL - 赤ちゃんのファーストアート",
+  "short_name": "ファーストアート",
+  "description": "赤ちゃんのタッチでアクリル絵の具が広がるデジタルアート＆VJ投影アプリ",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#03050c",
+  "theme_color": "#03050c",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
