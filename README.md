@@ -64,20 +64,25 @@ baby-first-art/
 ## 💻 ローカル開発・起動方法
 
 ### 1. 依存ライブラリのインストール
+
 ```bash
 npm install
 ```
 
 ### 2. 開発サーバーの起動
+
 ```bash
 npm run dev
 ```
+
 ブラウザで `http://localhost:5173` が開きます。
 
 ### 3. 静的ビルドの実行
+
 ```bash
 npm run build
 ```
+
 `dist/` ディレクトリに GitHub Pages 公開用の完全な静的ファイルが生成されます。
 
 ---
@@ -88,6 +93,7 @@ npm run build
    - GitHub 上で `baby-first-art` という名前の **Public（公開）リポジトリ** を新規作成します。
 
 2. **ローカルから Push**:
+
    ```bash
    git init
    git add .
@@ -100,4 +106,4 @@ npm run build
 3. **GitHub Pages の設定**:
    - GitHub リポジトリの **Settings > Pages** を開きます。
    - **Build and deployment > Source** を **`GitHub Actions`** に変更します。
-   - `main` ブランチへ Push されると、自動的にビルドされ `https://<あなたのユーザー名>.github.io/baby-first-art/` で公開されます！
+   - `main` ブランチへ Push されると、自動的にビルドされ `https://pocchi.github.io/baby-first-art/` で公開されます！
