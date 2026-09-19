@@ -1,23 +1,22 @@
 /**
  * ============================================================================
- * 🎛️ UIOverlay コンポーネント (操作バッジ・フロートコントロールパネル)
+ * 🎛️ UIOverlay コンポーネント (操作バッジ・フロートコントロールパネル・QRコード)
  * ============================================================================
  */
 
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Mode } from '../types/firstArt';
 
 interface UIOverlayProps {
   vjMode: Mode;
   hideUi: boolean;
   soundEnabled: boolean;
-  showFrame: boolean;
   connectionStatus: 'idle' | 'connecting' | 'connected' | 'disconnected';
   roomId: string;
   onSetVjMode: (mode: Mode) => void;
   onSetHideUi: (hide: boolean) => void;
   onToggleSound: () => void;
-  onToggleFrame: () => void;
   onResetCanvas: () => void;
 }
 
@@ -25,55 +24,61 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   vjMode,
   hideUi,
   soundEnabled,
-  showFrame,
   connectionStatus,
   roomId,
   onSetVjMode,
   onSetHideUi,
   onToggleSound,
-  onToggleFrame,
   onResetCanvas,
 }) => {
+  // QRコード用URL (現在ページのオリジン + パス + ?room=部屋ID)
+  const connectionUrl = typeof window !== 'undefined' && roomId
+    ? `${window.location.origin}${window.location.pathname}?room=${roomId}`
+    : '';
+
+  // 📱 iPad (Controllerモード): 「投影モニター同期中」のステータスバッジのみ表示
+  if (vjMode === 'controller') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 30,
+          padding: '10px 18px',
+          borderRadius: '16px',
+          background: connectionStatus === 'connected' ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 180, 0, 0.25)',
+          backdropFilter: 'blur(20px)',
+          border: `1px solid ${connectionStatus === 'connected' ? '#00f2fe' : '#ffb400'}`,
+          color: '#ffffff',
+          fontSize: '13px',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        }}
+      >
+        <span>{connectionStatus === 'connected' ? '📡 投影モニター同期中' : '⏳ 接続待機中...'}</span>
+        {roomId && (
+          <span
+            style={{
+              background: 'rgba(0, 0, 0, 0.6)',
+              padding: '3px 10px',
+              borderRadius: '8px',
+              color: '#ffcd75',
+              fontWeight: 800,
+            }}
+          >
+            部屋ID: {roomId}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* 木の額縁フレーム */}
-      {showFrame && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '5%',
-            left: '5%',
-            width: '90%',
-            height: '90%',
-            border: '28px solid #8b5a2b',
-            borderRadius: '16px',
-            boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8), 0 30px 80px rgba(0,0,0,0.9)',
-            pointerEvents: 'none',
-            zIndex: 25,
-          }}
-        >
-          {!hideUi && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '20px',
-                right: '25px',
-                background: 'rgba(255, 255, 255, 0.95)',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontFamily: '"Caveat", cursive, serif',
-                color: '#333',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-              }}
-            >
-              Baby&apos;s First Art 🎨
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ------------------------------------------------------------- */}
       {/* 👁️ UI オーバーレイ (hideUi === false 時) */}
       {/* ------------------------------------------------------------- */}
@@ -159,28 +164,83 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             </div>
           </div>
 
-          {/* WebRTC 接続状態バッジ */}
-          {(vjMode === 'projection' || vjMode === 'controller') && (
+          {/* 📡 投影モニター用 QRコード ＆ 接続案内カード (Projection モード時) */}
+          {vjMode === 'projection' && roomId && (
             <div
               style={{
                 position: 'absolute',
                 top: '72px',
                 left: '20px',
                 zIndex: 30,
-                padding: '8px 16px',
-                borderRadius: '14px',
-                background: connectionStatus === 'connected' ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 180, 0, 0.25)',
-                border: `1px solid ${connectionStatus === 'connected' ? '#00f2fe' : '#ffb400'}`,
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 700,
+                padding: '18px 22px',
+                borderRadius: '24px',
+                background: 'rgba(15, 23, 42, 0.9)',
+                backdropFilter: 'blur(24px)',
+                border: '1px solid rgba(0, 242, 254, 0.4)',
+                boxShadow: '0 16px 48px rgba(0, 0, 0, 0.7)',
+                color: '#ffffff',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '12px',
+                maxWidth: '240px',
               }}
             >
-              <span>{connectionStatus === 'connected' ? '📡 同期接続中' : '⏳ 接続待機中...'}</span>
-              {roomId && <span style={{ background: '#000', padding: '2px 8px', borderRadius: '6px', color: '#ffcd75' }}>部屋ID: {roomId}</span>}
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: connectionStatus === 'connected' ? '#00f2fe' : '#ffcd75',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>{connectionStatus === 'connected' ? '📡 同期接続完了！' : '📱 iPadのカメラで読み取って接続'}</span>
+              </div>
+
+              {/* QRコードを表示 (白背景でスキャン精度向上) */}
+              {connectionUrl && (
+                <div
+                  style={{
+                    background: '#ffffff',
+                    padding: '12px',
+                    borderRadius: '16px',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <QRCodeSVG
+                    value={connectionUrl}
+                    size={140}
+                    bgColor="#ffffff"
+                    fgColor="#03050c"
+                    level="M"
+                  />
+                </div>
+              )}
+
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                  または手動入力
+                </span>
+                <span
+                  style={{
+                    background: '#000000',
+                    border: '1px solid rgba(255, 205, 117, 0.4)',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    color: '#ffcd75',
+                    fontSize: '15px',
+                    fontWeight: 900,
+                    letterSpacing: '2px',
+                  }}
+                >
+                  部屋ID: {roomId}
+                </span>
+              </div>
             </div>
           )}
 
@@ -224,24 +284,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
               {soundEnabled ? '🔊 音ON' : '🔇 音OFF'}
             </button>
 
-            {/* 額縁トグル */}
-            <button
-              onClick={onToggleFrame}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '14px',
-                border: 'none',
-                background: showFrame ? '#ffbe00' : 'rgba(255, 255, 255, 0.15)',
-                color: showFrame ? '#000' : '#fff',
-                fontWeight: 800,
-                fontSize: '12px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {showFrame ? '🖼️ 額縁をはずす' : '🖼️ 額縁にかざる'}
-            </button>
-
             {/* キャンバスリセット */}
             <button
               onClick={onResetCanvas}
@@ -280,7 +322,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
             borderRadius: '50px',
             background: 'rgba(10, 15, 30, 0.6)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            border: '1px solid rgba(255, 112, 166, 0.4)',
             color: '#ffffff',
             fontSize: '14px',
             fontWeight: 800,

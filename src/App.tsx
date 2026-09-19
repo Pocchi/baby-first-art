@@ -28,7 +28,6 @@ export default function App() {
   const [vjMode, setVjMode] = useState<Mode>('select');
   const [hideUi, setHideUi] = useState(false);
   const [paletteIdx] = useState(0);
-  const [showFrame, setShowFrame] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // WebRTC ワイヤレス同期 state
@@ -226,6 +225,7 @@ export default function App() {
   useEffect(() => {
     if (vjMode === 'projection') {
       setHideUi(true); // 投影時はUI自動非表示
+      setSoundEnabled(false); // 投影PC側はデフォルトで効果音OFF (消音)
       const sync = new FirstArtSyncLinkWireless();
       syncLinkRef.current = sync;
 
@@ -250,8 +250,6 @@ export default function App() {
         } else if (msg.type === 'reset') {
           dropletsRef.current = generateInitialDroplets();
           setRerender((v) => v + 1);
-        } else if (msg.type === 'frame_toggle' && msg.showFrame !== undefined) {
-          setShowFrame(msg.showFrame);
         }
       });
 
@@ -294,8 +292,10 @@ export default function App() {
     sync.connectToHost(targetCode);
   };
 
-  // 👇 タッチイベントハンドラー
+  // 👇 タッチイベントハンドラー (絵の具の操作はiPad/コントローラー端末のみ許可)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
+
     const rect = e.currentTarget.getBoundingClientRect();
     const normX = (e.clientX - rect.left) / rect.width;
     const normY = (e.clientY - rect.top) / rect.height;
@@ -323,6 +323,7 @@ export default function App() {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
     if (!activePointerMap.current.has(e.pointerId)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -358,6 +359,7 @@ export default function App() {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (vjMode === 'projection') return; // PC投影画面ではローカル描画操作を全禁止
     activePointerMap.current.delete(e.pointerId);
 
     if (syncLinkRef.current) {
@@ -403,17 +405,11 @@ export default function App() {
         vjMode={vjMode}
         hideUi={hideUi}
         soundEnabled={soundEnabled}
-        showFrame={showFrame}
         connectionStatus={connectionStatus}
         roomId={roomId}
         onSetVjMode={setVjMode}
         onSetHideUi={setHideUi}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
-        onToggleFrame={() => {
-          const next = !showFrame;
-          setShowFrame(next);
-          if (syncLinkRef.current) syncLinkRef.current.send({ type: 'frame_toggle', showFrame: next });
-        }}
         onResetCanvas={handleReset}
       />
 
