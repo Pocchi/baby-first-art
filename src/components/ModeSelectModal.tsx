@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { Mode } from '../types/firstArt';
+import { normalizeRoomCode } from './firstArtSyncLinkWireless';
 
 interface ModeSelectModalProps {
   onSelectMode: (mode: Mode) => void;
@@ -164,7 +165,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
                 type="text"
                 maxLength={4}
                 value={inputCode}
-                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                onChange={(e) => setInputCode(normalizeRoomCode(e.target.value))}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

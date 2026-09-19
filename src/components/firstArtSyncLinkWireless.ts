@@ -24,6 +24,29 @@ export interface FirstArtSyncMessage {
   showFrame?: boolean;
 }
 
+/** 部屋コードの全角数字・スペース自動正規化関数 */
+export function normalizeRoomCode(code: string): string {
+  if (!code) return '';
+  return code
+    .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // 全角数字 -> 半角数字
+    .replace(/[^0-9a-zA-Z]/g, '') // 英数字以外を除去
+    .toUpperCase();
+}
+
+/** PeerJS 接続設定 (Google STUN サーバー明示指定でNAT越え接続保証) */
+const PEER_OPTIONS = {
+  debug: 1,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ],
+  },
+};
+
 export class FirstArtSyncLinkWireless {
   private peer: any = null;
   private connection: any = null; // コントローラー用
@@ -45,7 +68,7 @@ export class FirstArtSyncLinkWireless {
    */
   public async startHost(preferredRoomId?: string): Promise<string> {
     this.isHost = true;
-    this.roomId = preferredRoomId || Math.floor(1000 + Math.random() * 9000).toString();
+    this.roomId = normalizeRoomCode(preferredRoomId || Math.floor(1000 + Math.random() * 9000).toString());
     const peerId = `baby-firstart-room-${this.roomId}`;
 
     // 同一端末の別タブ・マルチモニタ用 BroadcastChannel 初期化
@@ -62,12 +85,23 @@ export class FirstArtSyncLinkWireless {
       const PeerModule = await import('peerjs');
       const Peer = PeerModule.default;
 
-      this.peer = new Peer(peerId, { debug: 1 });
+      if (this.peer) {
+        try { this.peer.destroy(); } catch {}
+      }
+
+      this.peer = new Peer(peerId, PEER_OPTIONS);
 
       this.peer.on('open', (id: string) => {
         console.log('[FirstArt Sync] Host registered with Peer ID:', id);
         if (this.onReadyCallback) {
           this.onReadyCallback(this.roomId);
+        }
+      });
+
+      this.peer.on('disconnected', () => {
+        console.log('[FirstArt Sync] Host disconnected from signaling server. Reconnecting...');
+        if (this.peer && !this.peer.destroyed) {
+          try { this.peer.reconnect(); } catch {}
         }
       });
 
@@ -94,6 +128,7 @@ export class FirstArtSyncLinkWireless {
       });
 
       this.peer.on('error', (err: any) => {
+        console.warn('[FirstArt Sync] Host Peer error:', err);
         if (err.type === 'unavailable-id') {
           this.close();
           this.startHost();
@@ -112,15 +147,17 @@ export class FirstArtSyncLinkWireless {
   }
 
   /**
-   * クライアント（iPad操作端末側）としてホストにWebRTC接続
+   * クライアント（iPad操作端末側）としてホストにWebRTC接続（自動リトライ付き）
    */
-  public async connectToHost(roomId: string) {
+  public async connectToHost(roomId: string, retryCount: number = 0) {
+    const cleanRoomId = normalizeRoomCode(roomId);
     this.isHost = false;
-    this.roomId = roomId;
-    const targetPeerId = `baby-firstart-room-${roomId}`;
+    this.roomId = cleanRoomId;
+    const targetPeerId = `baby-firstart-room-${cleanRoomId}`;
 
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      this.broadcastChannel = new BroadcastChannel(`first-art-channel-${roomId}`);
+      if (this.broadcastChannel) this.broadcastChannel.close();
+      this.broadcastChannel = new BroadcastChannel(`first-art-channel-${cleanRoomId}`);
       this.broadcastChannel.onmessage = (event) => {
         if (this.onMessageCallback) {
           this.onMessageCallback(event.data as FirstArtSyncMessage);
@@ -133,15 +170,21 @@ export class FirstArtSyncLinkWireless {
       const Peer = PeerModule.default;
       const clientId = `baby-firstart-client-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      this.peer = new Peer(clientId, { debug: 1 });
+      if (this.peer) {
+        try { this.peer.destroy(); } catch {}
+      }
+
+      this.peer = new Peer(clientId, PEER_OPTIONS);
+      let isConnected = false;
 
       this.peer.on('open', () => {
-        console.log('[FirstArt Sync] Connecting to host:', targetPeerId);
+        console.log(`[FirstArt Sync] Connecting to host ${targetPeerId} (Attempt ${retryCount + 1})...`);
         const conn = this.peer.connect(targetPeerId, { reliable: true });
         this.connection = conn;
 
         conn.on('open', () => {
           console.log('[FirstArt Sync] Connected to host!');
+          isConnected = true;
           if (this.onConnectCallback) this.onConnectCallback();
         });
 
@@ -154,12 +197,28 @@ export class FirstArtSyncLinkWireless {
         });
 
         conn.on('error', (err: any) => {
+          console.warn('[FirstArt Sync] Connection error:', err);
           if (this.onErrorCallback) this.onErrorCallback(err.toString());
         });
       });
 
+      this.peer.on('disconnected', () => {
+        if (!isConnected && this.peer && !this.peer.destroyed) {
+          try { this.peer.reconnect(); } catch {}
+        }
+      });
+
       this.peer.on('error', (err: any) => {
-        if (this.onErrorCallback) this.onErrorCallback(err.toString());
+        console.warn(`[FirstArt Sync] Peer error (Attempt ${retryCount + 1}):`, err);
+        if (!isConnected && (err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error') && retryCount < 2) {
+          console.log(`[FirstArt Sync] Peer unavailable, retrying in 1.2s... (${retryCount + 2}/3)`);
+          try { this.peer.destroy(); } catch {}
+          setTimeout(() => {
+            this.connectToHost(cleanRoomId, retryCount + 1);
+          }, 1200);
+        } else if (this.onErrorCallback) {
+          this.onErrorCallback(`部屋ID「${cleanRoomId}」が見つからないか無効です。PC側で「投影モニター」が起動中かご確認ください。`);
+        }
       });
     } catch (error) {
       console.error('[FirstArt Sync] Failed to import PeerJS:', error);

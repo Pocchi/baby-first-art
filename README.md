@@ -106,4 +106,4 @@ npm run build
 3. **GitHub Pages の設定**:
    - GitHub リポジトリの **Settings > Pages** を開きます。
    - **Build and deployment > Source** を **`GitHub Actions`** に変更します。
-   - `main` ブランチへ Push されると、自動的にビルドされ `https://pocchi.github.io/baby-first-art/` で公開されます！
+   - `main` ブランチへ Push されると、自動的にビルドされ https://pocchi.github.io/baby-first-art/ で公開されます！

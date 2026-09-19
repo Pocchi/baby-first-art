@@ -19,7 +19,7 @@ import { FirstArtCanvas } from './components/FirstArtCanvas';
 import { ParticleCanvas } from './components/ParticleCanvas';
 import { UIOverlay } from './components/UIOverlay';
 import { ModeSelectModal } from './components/ModeSelectModal';
-import { FirstArtSyncLinkWireless, FirstArtSyncMessage } from './components/firstArtSyncLinkWireless';
+import { FirstArtSyncLinkWireless, FirstArtSyncMessage, normalizeRoomCode } from './components/firstArtSyncLinkWireless';
 import { Droplet, Mode, Particle, Ripple } from './types/firstArt';
 import { HOLOGRAM_PARTICLE_COLORS } from './constants/palettes';
 
@@ -335,7 +335,8 @@ export default function App() {
 
   // 🎮 WebRTC コントローラー接続ハンドラー
   const handleConnectAsController = (targetCode: string) => {
-    if (!targetCode || targetCode.length !== 4) {
+    const cleanCode = normalizeRoomCode(targetCode);
+    if (!cleanCode || cleanCode.length !== 4) {
       setErrorMessage('4桁の部屋コードを入力してください');
       setConnectionStatus('disconnected');
       return;
@@ -343,7 +344,7 @@ export default function App() {
 
     setConnectionStatus('connecting');
     setErrorMessage('');
-    setReconnectCode(targetCode);
+    setReconnectCode(cleanCode);
 
     const sync = new FirstArtSyncLinkWireless();
     syncLinkRef.current = sync;
@@ -599,7 +600,7 @@ export default function App() {
                     type="text"
                     maxLength={4}
                     value={reconnectCode}
-                    onChange={(e) => setReconnectCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setReconnectCode(normalizeRoomCode(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
