@@ -1,9 +1,9 @@
 # 🎨 Baby's First Art GLSL - 赤ちゃんのファーストアート WebRTC VJ スタジオ
 
-iPadなどのタッチ端末（操作リモコン）と、プロジェクター/大画面PC（投影モニター）をワイヤレスでリアルタイム同期（60FPS）し、赤ちゃんのタッチ操作でアクリル絵の具とキラカード風ホログラムラメアートを制作・鑑賞できる独立Webアプリケーションです。
+iPadなどのタッチ端末（操作リモコン）と、プロジェクター/大画面PC（投影モニター）をワイヤレスでリアルタイム同期（60FPS）し、赤ちゃんのタッチ操作でアクリル絵の具とキラカード風ホログラムラメアートを制作・鑑賞できる独立Webアプリケーション（PWA対応）です。
 
 > 🤖 **Developed with Google Antigravity & Gemini**
-> 本アプリケーションのGLSLシェーダー、WebRTCリアルタイム同期システム、UI/UXデザイン、およびTypeScriptコード基盤は **Google Antigravity** と **Gemini** ツールを活用して開発・生成されました。
+> 本アプリケーションのGLSLシェーダー、WebRTCリアルタイム同期システム、UI/UXデザイン、PWAモバイル最適化、およびTypeScriptコード基盤は **Google Antigravity** と **Gemini** ツールを活用して開発・生成されました。
 
 ---
 
@@ -16,24 +16,30 @@ baby-first-art/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml          # mainブランチへのPush時にGitHub Actionsで自動ビルド＆デプロイ
+├── public/
+│   ├── manifest.json           # PWA (Progressive Web App) アプリマニフェスト
+│   ├── sw.js                   # オフラインキャッシュ用 Service Worker
+│   ├── icon-192.png            # PWA用 アイコン (192x192)
+│   ├── icon-512.png            # PWA用 アイコン (512x512)
+│   └── apple-touch-icon.png    # iOS ホーム画面アイコン
 ├── src/
 │   ├── components/
-│   │   ├── FirstArtCanvas.tsx  # 3D WebGL (React Three Fiber) Canvas コンポーネント
-│   │   ├── ModeSelectModal.tsx # モード選択 ＆ 部屋コード入力ダイアログ
+│   │   ├── FirstArtCanvas.tsx  # 3D WebGL (React Three Fiber) Canvas コンポーネント (dpr 1.5制限 ＆ 60FPS)
+│   │   ├── ModeSelectModal.tsx # 全画面縦スクロール モード選択 ＆ 画面中央4桁コード入力ダイアログ
 │   │   ├── ParticleCanvas.tsx  # 2D HTML Canvas 手元スプラッシュ粒子アニメーション
-│   │   ├── UIOverlay.tsx       # ヘッダー ＆ フロートコントロールパネル
-│   │   └── firstArtSyncLinkWireless.ts  # WebRTC (PeerJS) ＋ BroadcastChannel ワイヤレス同期
+│   │   ├── UIOverlay.tsx       # ヘッダー ＆ フロートコントロールパネル (Safe-Area ＆ 100dvh対応)
+│   │   └── firstArtSyncLinkWireless.ts  # WebRTC (PeerJS) ＋ STUN ＋ 全角自動補正 ＋ PWA復帰自動再同期
 │   ├── constants/
-│   │   └── palettes.ts         # アクリル絵の具カラーパレット ＆ 粒子カラー定数
+│   │   └── palettes.ts         # アクリル絵の具カラーパレット (基本4色＋✨差し色2色) ＆ 粒子カラー定数
 │   ├── shaders/
-│   │   └── firstArtShader.ts   # Custom GLSL シェーダー (詳細な日本語解説コメント付き)
+│   │   └── firstArtShader.ts   # Custom GLSL シェーダー (1:1正円補正 ＋ ゼロ除算安全ガード)
 │   ├── types/
 │   │   └── firstArt.ts         # TypeScript 型定義 (Particle, Ripple, Droplet, Mode)
-│   ├── App.tsx                 # 簡潔で可読性の高いメインコンポーネント (~150行)
-│   ├── main.tsx                # エントリーポイント
+│   ├── App.tsx                 # メインコンポーネント (PWA / Safe-Area / 視認性制御)
+│   ├── main.tsx                # エントリーポイント (Service Worker 自動登録)
 │   ├── index.css               # グローバルスタイル定義
 │   └── vite-env.d.ts           # Viteクライアント ＋ React Three Fiber JSX型定義
-├── index.html                  # メタタグ ＋ Google Fonts (Outfit / Inter / Caveat)
+├── index.html                  # メタタグ (Viewport-fit cover / PWA) ＋ Google Fonts
 ├── package.json                # 依存パッケージおよびスクリプト定義
 ├── tsconfig.json               # TypeScript コンパイラ設定
 ├── vite.config.ts              # Viteビルド設定 (相対パス base: './')
@@ -47,17 +53,26 @@ baby-first-art/
 ## 🚀 主な機能・特徴
 
 - **🎨 WebGL / GLSL 3Dアクリル絵の具シェーダー**:
+  - 画面のアスペクト比（19.5:9 iPhone 〜 4:3 iPad 〜 16:9 PC）に関わらず絵の具が完璧な正円（1:1）で描画される補正計算
   - ドーム状の立体ツヤ感、プラチナシルバーハイライト、ドメインワープ混色グラデーション
-  - 漆黒キャンバス（#03050c）と超低速スモークゆらめき
-  - キラカード風ホログラムフォイル粒子
-- **📱 タッチ端末限定スプラッシュ（星・ハート・波紋）**:
-  - iPad手元画面でのみタッチ時に2Dスプラッシュアニメーションが表示され、直感的なタッチフィードバックを提供
-  - 大画面PC（投影モニター）では2Dノイズが除去され、洗練されたアクリル絵の具アートのみを静かに投影
-- **📡 WebRTC / BroadcastChannel ワイヤレスVJ同期**:
-  - 4桁の部屋コードで手元iPadと大画面PCをワイヤレス同期
-  - 画面解像度・アスペクト比の違いに依存しない相対座標（0.0〜1.0）同期
-- **👁️ 全画面UI隠しモード (Clean Display Mode)**:
-  - ボタンやヘッダーを消去し、100%全画面キャンバス化（`H` キー / `Space` キー / 👁️ ボタンで切替）
+  - 漆黒キャンバス（#03050c）と超低速スモークゆらめき ＋ キラカード風ホログラムフォイル粒子
+- **📡 WebRTC / STUN / PWA 堅牢型ワイヤレスVJ同期**:
+  - 全角数字（例: `４６６４`）の自動半角正規化 (`normalizeRoomCode`)
+  - Google STUN サーバー群による異なるWi-Fi・ルーター環境越え接続確立
+  - PWA / iOS Safari スリープ復帰時 (`visibilitychange`) の自動状態確認 ＆ リコネクト
+  - 二重保証キャンバスリセット信号送信による確実な端末間クリア同期
+- **📱 赤ちゃん誤操作防止ガード (Baby-Proofing)**:
+  - 長押しメニュー・右クリック遮断 (`contextmenu`)
+  - ピンチズーム・拡大縮小・ダブルタップズーム無効化
+  - バウンススクロール無効化 (`touch-action: none; overscroll-behavior: none;`)
+- **📲 モバイル最適化 ＆ PWA 対応**:
+  - CSS `100dvh` (Dynamic Viewport Height) 適用により Mobile Safari アドレスバー表示時でもUIが隠れない設計
+  - ノッチ・Dynamic Island・画面下ホームインジケーターに対応する Safe Area (`env(safe-area-inset-top/bottom)`) 自動確保
+  - ホーム画面への追加によるスタンドアロン全画面アプリ化 ＆ オフライン動作
+- **⚙️ 直感的なUI ＆ モード切替**:
+  - 全端末で UI デフォルト表示 (`hideUi = false`)、必要に応じて「👁️ UIを隠す (全画面)」ボタンや `H` / `Space` キーで隠せる親切設計
+  - 画面中央の専用ポップアップダイアログによるスクロール不要な 4桁部屋コード入力
+  - PC（投影画面）マウスクリックによる単一点ドロップ追加（基本4色 ＋ ✨差し色2色）
 
 ---
 
@@ -89,21 +104,13 @@ npm run build
 
 ## 🌐 GitHub Pages への公開手順
 
-1. **新しい GitHub リポジトリを作成**:
-   - GitHub 上で `baby-first-art` という名前の **Public（公開）リポジトリ** を新規作成します。
-
-2. **ローカルから Push**:
+1. **GitHub へ Push**:
 
    ```bash
-   git init
    git add .
-   git commit -m "refactor: update modular file structure and docs"
-   git branch -M main
-   git remote add origin https://github.com/<あなたのユーザー名>/baby-first-art.git
-   git push -u origin main
+   git commit -m "feat: complete baby first art app with pwa & mobile safari fixes"
+   git push origin main
    ```
 
-3. **GitHub Pages の設定**:
-   - GitHub リポジトリの **Settings > Pages** を開きます。
-   - **Build and deployment > Source** を **`GitHub Actions`** に変更します。
-   - `main` ブランチへ Push されると、自動的にビルドされ https://pocchi.github.io/baby-first-art/ で公開されます！
+2. **GitHub Pages の自動デプロイ**:
+   - GitHub リポジトリの **Settings > Pages** で Source を **`GitHub Actions`** に設定すると、`main` ブランチへの Push 時に自動ビルドされ、https://pocchi.github.io/baby-first-art/ で公開されます。
