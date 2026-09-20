@@ -77,7 +77,7 @@ export const FirstArtShader = {
 
     void main() {
       vec2 uv = vUv;
-      float aspect = uResolution.x / uResolution.y;
+      float aspect = uResolution.y > 0.0 ? uResolution.x / uResolution.y : 1.0;
       vec2 aspectUv = vec2(uv.x * aspect, uv.y);
 
       // ① 超低速スモークゆらめきドメイン歪み (ゆらめき速度 0.01 / 振幅 0.005)

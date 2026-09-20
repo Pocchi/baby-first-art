@@ -531,7 +531,8 @@ export default function App() {
     <div
       style={{
         width: '100vw',
-        height: '100dvh',
+        height: '100vh',
+        minHeight: '100dvh',
         position: 'relative',
         overflow: 'hidden',
         backgroundColor: '#03050c',
