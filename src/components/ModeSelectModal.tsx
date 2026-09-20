@@ -47,30 +47,38 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
   return (
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: 0,
         left: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         zIndex: 100,
-        backgroundColor: 'rgba(3, 5, 12, 0.92)',
+        backgroundColor: 'rgba(3, 5, 12, 0.94)',
         backdropFilter: 'blur(30px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px',
+        padding: '16px',
+        overflowY: 'auto',
+        touchAction: 'pan-y',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       <div
         style={{
           maxWidth: '850px',
           width: '100%',
-          background: 'rgba(15, 23, 42, 0.95)',
-          border: '1px solid rgba(255, 112, 166, 0.3)',
-          borderRadius: '28px',
-          padding: '36px',
-          boxShadow: '0 30px 90px rgba(0, 0, 0, 0.8)',
+          maxHeight: '92vh',
+          overflowY: 'auto',
+          touchAction: 'pan-y',
+          WebkitOverflowScrolling: 'touch',
+          background: 'rgba(15, 23, 42, 0.96)',
+          border: '1px solid rgba(255, 112, 166, 0.35)',
+          borderRadius: '24px',
+          padding: '24px 20px',
+          boxShadow: '0 30px 90px rgba(0, 0, 0, 0.85)',
           color: '#ffffff',
+          boxSizing: 'border-box',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -159,7 +167,7 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
                 e.preventDefault();
                 handleConnectSubmit();
               }}
-              style={{ display: 'flex', gap: '12px' }}
+              style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}
             >
               <input
                 type="text"

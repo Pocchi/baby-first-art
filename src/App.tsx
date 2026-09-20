@@ -237,6 +237,15 @@ export default function App() {
         type: 'droplets_update',
         droplets: newDroplets,
       });
+      // 📱 PWA / 通信遅延対策: 120ms後に最新キャンバス状態を確実に再送信
+      setTimeout(() => {
+        if (syncLinkRef.current) {
+          syncLinkRef.current.send({
+            type: 'droplets_update',
+            droplets: newDroplets,
+          });
+        }
+      }, 120);
     }
   }, [generateInitialDroplets]);
 
@@ -272,6 +281,32 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // 📱 PWA / Safari のスリープ・バックグラウンド復帰時の自動再同期 ＆ 再接続
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[PWA Sync] App returned to foreground. Verifying sync state...');
+        if (vjMode === 'controller' && roomId) {
+          if (!syncLinkRef.current || connectionStatus !== 'connected') {
+            handleConnectAsController(roomId);
+          } else {
+            try {
+              syncLinkRef.current.send({ type: 'ping' });
+            } catch {}
+          }
+        } else if (vjMode === 'projection' && syncLinkRef.current) {
+          syncLinkRef.current.send({
+            type: 'droplets_update',
+            droplets: dropletsRef.current,
+          });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [vjMode, roomId, connectionStatus]);
+
   // 📡 WebRTC 投影ホスト初期化 (Projection モード)
   useEffect(() => {
     if (vjMode === 'projection') {
@@ -294,6 +329,14 @@ export default function App() {
       });
 
       sync.onMessage((msg: FirstArtSyncMessage) => {
+        if (msg.type === 'ping') {
+          sync.send({
+            type: 'droplets_update',
+            droplets: dropletsRef.current,
+          });
+          return;
+        }
+
         if (msg.type === 'pointer_down' || msg.type === 'pointer_move') {
           if (msg.x !== undefined && msg.y !== undefined) {
             applyPaintSpreadAt(msg.x, msg.y);
@@ -544,18 +587,21 @@ export default function App() {
       {vjMode === 'controller' && connectionStatus !== 'connected' && (
         <div
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
+            width: '100vw',
+            height: '100vh',
             zIndex: 90,
             backgroundColor: 'rgba(3, 5, 12, 0.88)',
             backdropFilter: 'blur(24px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px',
+            padding: '16px',
+            overflowY: 'auto',
+            touchAction: 'pan-y',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           <div

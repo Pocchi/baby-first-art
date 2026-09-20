@@ -69,19 +69,19 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       <div
         style={{
           position: 'absolute',
-          top: '16px',
-          left: '16px',
+          top: 'calc(env(safe-area-inset-top, 12px) + 8px)',
+          left: 'calc(env(safe-area-inset-left, 12px) + 8px)',
           zIndex: 30,
           padding: '6px 12px',
           borderRadius: '10px',
-          background: 'rgba(0, 0, 0, 0.35)',
+          background: 'rgba(0, 0, 0, 0.45)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           color: '#cbd5e1',
           fontSize: '11px',
           fontWeight: 600,
           letterSpacing: '0.5px',
-          opacity: 0.65,
+          opacity: 0.75,
           pointerEvents: 'none',
         }}
       >
@@ -97,100 +97,81 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       {/* ------------------------------------------------------------- */}
       {!hideUi && vjMode !== 'select' && (
         <>
-          {/* 左上モード変更 ＆ 全画面切り替えボタン */}
+          {/* 上部ヘッダーバー (レスポンシブ ＆ iPhone Notch/Dynamic Island Safe Area対応) */}
           <div
             style={{
               position: 'absolute',
-              top: '20px',
-              left: '20px',
+              top: 'calc(env(safe-area-inset-top, 12px) + 8px)',
+              left: 'calc(env(safe-area-inset-left, 12px) + 8px)',
+              right: 'calc(env(safe-area-inset-right, 12px) + 8px)',
               zIndex: 30,
               display: 'flex',
-              gap: '12px',
+              flexWrap: 'wrap',
+              gap: '8px',
+              justifyContent: 'space-between',
               alignItems: 'center',
+              pointerEvents: 'none',
             }}
           >
-            <button
-              onClick={() => onSetVjMode('select')}
-              style={{
-                padding: '10px 18px',
-                borderRadius: '16px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                color: '#ffcd75',
-                fontSize: '13px',
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              ⚙️ モード変更
-            </button>
+            {/* 左側: モード変更 ＆ 全画面切替 */}
+            <div style={{ display: 'flex', gap: '8px', pointerEvents: 'auto' }}>
+              <button
+                onClick={() => onSetVjMode('select')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '14px',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffcd75',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ⚙️ モード変更
+              </button>
 
-            <button
-              onClick={toggleFullScreen}
-              style={{
-                padding: '10px 18px',
-                borderRadius: '16px',
-                background: 'rgba(0, 242, 254, 0.15)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(0, 242, 254, 0.3)',
-                color: '#00f2fe',
-                fontSize: '13px',
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              ⛶ 全画面切替
-            </button>
-          </div>
+              <button
+                onClick={toggleFullScreen}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '14px',
+                  background: 'rgba(0, 242, 254, 0.15)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(0, 242, 254, 0.3)',
+                  color: '#00f2fe',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ⛶ 全画面切替
+              </button>
+            </div>
 
-          {/* 右上タイトルバッジ ＆ UI隠しボタン */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              zIndex: 30,
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center',
-            }}
-          >
-            <button
-              onClick={() => onSetHideUi(true)}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '20px',
-                background: 'rgba(255, 112, 166, 0.25)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 112, 166, 0.5)',
-                color: '#ff70a6',
-                fontWeight: 800,
-                fontSize: '13px',
-                cursor: 'pointer',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-              }}
-            >
-              👁️ UIを隠す (全画面)
-            </button>
-
-            <div
-              style={{
-                padding: '10px 20px',
-                borderRadius: '20px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 112, 166, 0.4)',
-                color: '#ff70a6',
-                fontWeight: 800,
-                fontSize: '14px',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <span>🎨</span> 赤ちゃんのファーストアート GLSL
+            {/* 右側: UIを隠すボタン (※ タイトル文字表記は削除) */}
+            <div style={{ pointerEvents: 'auto' }}>
+              <button
+                onClick={() => onSetHideUi(true)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '14px',
+                  background: 'rgba(255, 112, 166, 0.25)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 112, 166, 0.5)',
+                  color: '#ff70a6',
+                  fontWeight: 800,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                👁️ UIを隠す (全画面)
+              </button>
             </div>
           </div>
 
@@ -278,21 +259,22 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           <div
             style={{
               position: 'absolute',
-              bottom: '24px',
+              bottom: 'calc(env(safe-area-inset-bottom, 16px) + 12px)',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 30,
-              padding: '14px 22px',
-              borderRadius: '24px',
-              background: 'rgba(10, 15, 30, 0.85)',
+              padding: '10px 16px',
+              borderRadius: '20px',
+              background: 'rgba(10, 15, 30, 0.88)',
               backdropFilter: 'blur(30px)',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6)',
               display: 'flex',
               alignItems: 'center',
-              gap: '14px',
-              maxWidth: '92vw',
+              gap: '10px',
+              maxWidth: '94vw',
               overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
               color: '#ffffff',
             }}
           >
@@ -398,23 +380,24 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           title="UIを表示 (Hキー / Spaceキーでも可能)"
           style={{
             position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 40,
-            padding: '10px 14px',
+            top: 'calc(env(safe-area-inset-top, 12px) + 10px)',
+            right: 'calc(env(safe-area-inset-right, 12px) + 10px)',
+            zIndex: 50,
+            padding: '10px 16px',
             borderRadius: '50px',
-            background: 'rgba(10, 15, 30, 0.6)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 112, 166, 0.4)',
+            background: 'rgba(10, 15, 30, 0.88)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 112, 166, 0.6)',
             color: '#ffffff',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 800,
             cursor: 'pointer',
-            opacity: 0.6,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+            opacity: 0.9,
             transition: 'opacity 0.2s',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.9')}
         >
           👁️ UIを表示
         </button>
