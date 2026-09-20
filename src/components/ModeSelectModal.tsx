@@ -51,40 +51,41 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         zIndex: 100,
         backgroundColor: 'rgba(3, 5, 12, 0.94)',
         backdropFilter: 'blur(30px)',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
+        justifyContent: 'flex-start',
+        paddingTop: 'calc(env(safe-area-inset-top, 16px) + 20px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 60px)',
+        paddingLeft: '16px',
+        paddingRight: '16px',
         overflowY: 'auto',
         touchAction: 'pan-y',
         WebkitOverflowScrolling: 'touch',
+        boxSizing: 'border-box',
       }}
     >
       <div
         style={{
           maxWidth: '850px',
           width: '100%',
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          touchAction: 'pan-y',
-          WebkitOverflowScrolling: 'touch',
+          margin: 'auto 0',
           background: 'rgba(15, 23, 42, 0.96)',
           border: '1px solid rgba(255, 112, 166, 0.35)',
           borderRadius: '24px',
-          padding: '24px 20px',
+          padding: '28px 20px',
           boxShadow: '0 30px 90px rgba(0, 0, 0, 0.85)',
           color: '#ffffff',
           boxSizing: 'border-box',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <span style={{ fontSize: '48px', display: 'block', marginBottom: '8px' }}>🎨 📡</span>
           <h1 style={{ fontSize: '26px', fontWeight: 900, color: '#ff70a6', margin: '0 0 8px 0' }}>
-            ファーストアート WebRTC VJ スタジオ
+            baby first art
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
             iPadなどのタッチ端末と投影モニターをワイヤレスで同期し、大画面でアート体験を楽しめます。
@@ -104,9 +105,8 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               transition: 'all 0.2s',
             }}
           >
-            <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎮</div>
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#ff70a6', margin: '0 0 8px 0' }}>
-              操作端末 (Controller)
+              コントローラー
             </h3>
             <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
               iPadやスマホ等の手元用。タッチした描画信号をモニターにリアルタイム送信します。
@@ -125,9 +125,8 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               transition: 'all 0.2s',
             }}
           >
-            <div style={{ fontSize: '36px', marginBottom: '12px' }}>🖥️</div>
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#00f2fe', margin: '0 0 8px 0' }}>
-              投影モニター (Projection)
+              モニター
             </h3>
             <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
               大画面モニターやプロジェクター用。4桁コードを発行し、全画面で自動表示します。
@@ -146,7 +145,6 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               transition: 'all 0.2s',
             }}
           >
-            <div style={{ fontSize: '36px', marginBottom: '12px' }}>📱</div>
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', margin: '0 0 8px 0' }}>
               単体スタンドアロン
             </h3>
@@ -233,10 +231,10 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
             <span>💡 PWAアプリ化ガイド（全画面表示 ＆ 赤ちゃん誤操作ガード）</span>
           </div>
           <div>
-            <strong>📱 iPad の場合:</strong> Safari の共有ボタン ➔ 「ホーム画面に追加」でアドレスバーのないネイティブアプリとしてインストールできます。
+            <strong>iPad の場合:</strong> Safari の共有ボタン ➔ 「ホーム画面に追加」でアドレスバーのないネイティブアプリとしてインストールできます。
           </div>
           <div>
-            <strong>🖥️ PC の場合:</strong> Chrome / Edge のアドレスバー右側にある「アプリとしてインストール」ボタンから、ブラウザ枠なしで全画面起動できます。
+            <strong>PC の場合:</strong> Chrome / Edge のアドレスバー右側にある「アプリとしてインストール」ボタンから、ブラウザ枠なしで全画面起動できます。
           </div>
         </div>
       </div>

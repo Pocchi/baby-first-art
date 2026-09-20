@@ -259,7 +259,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           <div
             style={{
               position: 'absolute',
-              bottom: 'calc(env(safe-area-inset-bottom, 16px) + 12px)',
+              bottom: 'max(calc(env(safe-area-inset-bottom, 0px) + 16px), 28px)',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 30,
