@@ -77,7 +77,8 @@ export const FirstArtShader = {
 
     void main() {
       vec2 uv = vUv;
-      vec2 aspectUv = uv; // 画面相対座標 (0.0 ~ 1.0)
+      float aspect = uResolution.x / uResolution.y;
+      vec2 aspectUv = vec2(uv.x * aspect, uv.y);
 
       // ① 超低速スモークゆらめきドメイン歪み (ゆらめき速度 0.01 / 振幅 0.005)
       vec2 smokeNoise = vec2(
@@ -103,7 +104,7 @@ export const FirstArtShader = {
         float currentRadius = drop.z;
         if (currentRadius <= 0.001) continue;
 
-        vec2 dropPos = drop.xy;
+        vec2 dropPos = vec2(drop.x * aspect, drop.y);
         float distToDrop = distance(distortedUv, dropPos);
 
         // 絵の具の波打ち輪郭ノイズ

@@ -11,7 +11,7 @@
  */
 
 export interface FirstArtSyncMessage {
-  type: 'droplets_update' | 'pointer_down' | 'pointer_move' | 'palette_change' | 'reset' | 'frame_toggle' | 'host_closed';
+  type: 'droplets_update' | 'pointer_down' | 'pointer_move' | 'palette_change' | 'reset' | 'frame_toggle' | 'host_closed' | 'ping' | 'pong';
   droplets?: Array<{ x: number; y: number; r: number; colorIdx: number }>;
   x?: number;
   y?: number;
@@ -241,8 +241,9 @@ export class FirstArtSyncLinkWireless {
     }
 
     if (this.isHost) {
-      // ホストの場合: 全接続コントローラー（iPad）に送信
-      const targets = new Set([...this.connections, this.connection].filter(Boolean));
+      // ホストの場合: 有効な全接続コントローラー（iPad）にブロードキャスト送信
+      this.connections = this.connections.filter((c) => c && c.open);
+      const targets = new Set([...this.connections, this.connection].filter((c) => c && c.open));
       targets.forEach((conn: any) => {
         try {
           conn.send(msg);
@@ -250,7 +251,7 @@ export class FirstArtSyncLinkWireless {
           console.warn('[FirstArt Sync] WebRTC send error:', err);
         }
       });
-    } else if (this.connection) {
+    } else if (this.connection && this.connection.open) {
       // コントローラーの場合: ホストに送信
       try {
         this.connection.send(msg);
