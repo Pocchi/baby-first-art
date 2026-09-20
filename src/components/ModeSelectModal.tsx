@@ -223,12 +223,8 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ fontSize: '42px', marginBottom: '12px' }}>📡</div>
-            <h3 style={{ fontSize: '20px', fontWeight: 900, color: '#ff70a6', margin: '0 0 8px 0' }}>
-              投影モニターに接続
-            </h3>
             <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '24px' }}>
-              プロジェクター・モニター画面に表示されている<br />
+              モニター画面に表示されている<br />
               <strong style={{ color: '#ffcd75' }}>4桁の部屋コード</strong> を入力してください。
             </p>
 
@@ -276,14 +272,14 @@ export const ModeSelectModal: React.FC<ModeSelectModalProps> = ({
                   borderRadius: '16px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)',
-                  color: '#000000',
+                  color: '#333',
                   fontSize: '16px',
-                  fontWeight: 900,
+                  fontWeight: 'bold',
                   cursor: 'pointer',
                   boxShadow: '0 8px 24px rgba(255, 112, 166, 0.35)',
                 }}
               >
-                送信機として接続 🚀
+                モニターに接続 
               </button>
             </form>
 
